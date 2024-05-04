@@ -3,26 +3,27 @@ import {
   MappedInteractionTypes,
   MappedComponentBuilderTypes,
   APIMessageActionRowComponent,
+  ButtonStyle,
+  JSONEncodable,
 } from "discord.js";
 import {
-  Button,
   InteractionButton,
   LinkButton,
+  MessageComponent,
   StringSelectMenu,
   UserSelectMenu,
 } from "..";
 
-export type MessageComponentBaseData<
+export interface MessageComponentData<
   Component extends APIMessageActionRowComponent
-> = {
-  readonly data: Component;
-  get builder(): MappedComponentBuilderTypes[Component["type"]];
+> {
+  // new (data: Component | JSONEncodable<Component>): MessageComponent<Component>;
+  get data(): Partial<Component>;
+  builder: MappedComponentBuilderTypes[Component["type"]];
   readonly run: (
     int: MappedInteractionTypes[Component["type"]]
   ) => Awaitable<any>;
-};
-
-export type OmitType<T> = Omit<T, "type">;
+}
 
 export interface MessageComponents extends Array<MessageActionRowComponents> {
   get buttons(): ButtonComponents;
@@ -40,7 +41,11 @@ export interface SelectMenuComponents
   get user(): UserSelectMenu[];
 }
 
+export type Button = InteractionButton | LinkButton;
+
 export type MessageActionRowComponents =
   | Button
   | StringSelectMenu
   | UserSelectMenu;
+
+export type InteractionButtonStyle = Exclude<ButtonStyle, ButtonStyle.Link>;

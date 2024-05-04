@@ -29,7 +29,7 @@ export default new (class extends Event<Events.InteractionCreate> {
                   await Client.components.buttons.interaction
                     .find(
                       (component) =>
-                        component.data.style != ButtonStyle.Link &&
+                        // component.data.style != ButtonStyle.Link &&
                         component.data.custom_id == int.customId
                     )
                     ?.run(int);
@@ -59,18 +59,24 @@ export default new (class extends Event<Events.InteractionCreate> {
             default:
               switch (int.commandType) {
                 case ApplicationCommandType.ChatInput:
-                  await Client.commands.chatInput
-                    .find(({ name }) => name.startsWith(int.commandName))
-                    ?.run(int);
+                  const cmd = Client.commands.chatInput.find((command) =>
+                    command.builder.name.startsWith(int.commandName)
+                  );
+                  console.log(cmd);
+                  await cmd?.run(int);
                   break;
                 case ApplicationCommandType.Message:
                   await Client.commands.message
-                    .find(({ name }) => name.startsWith(int.commandName))
+                    .find((command) =>
+                      command.builder.name.startsWith(int.commandName)
+                    )
                     ?.run(int);
                   break;
                 case ApplicationCommandType.User:
                   await Client.commands.user
-                    .find(({ name }) => name.startsWith(int.commandName))
+                    .find((command) =>
+                      command.builder.name.startsWith(int.commandName)
+                    )
                     ?.run(int);
               }
           }

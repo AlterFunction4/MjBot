@@ -10,18 +10,26 @@ import {
   ButtonInteraction,
   ButtonStyle,
   ComponentType,
+  JSONEncodable,
   MappedComponentBuilderTypes,
   MappedInteractionTypes,
   StringSelectMenuBuilder,
   UserSelectMenuBuilder,
   UserSelectMenuInteraction,
 } from "discord.js";
-import { Client, MessageComponentBaseData, OmitType } from "..";
+import {
+  Client,
+  InteractionButtonStyle,
+  MessageComponentData,
+  OmitType,
+} from "..";
 
 export abstract class MessageComponent<C extends APIMessageActionRowComponent>
-  implements MessageComponentBaseData<C>
+  implements MessageComponentData<C>
 {
-  constructor(public readonly data: C) {}
+  constructor(data: C | JSONEncodable<C>) {}
+  abstract get data(): Partial<C>;
+  // static builder(data: APIMessageActionRowComponent | JSONEncodable<APIMessageActionRowComponent>): MessageActionRowComponentBuilder
   abstract readonly builder: MappedComponentBuilderTypes[C["type"]];
   abstract readonly run: (
     int: MappedInteractionTypes[C["type"]]
@@ -33,19 +41,30 @@ export abstract class SelectMenu<
 > extends MessageComponent<C> {}
 
 export class StringSelectMenu extends SelectMenu<APIStringSelectComponent> {
-  static builder(data: APIStringSelectComponent): StringSelectMenuBuilder {
+  get data() {
+    return this.builder.data;
+  }
+  static builder(
+    data: APIStringSelectComponent | JSONEncodable<APIStringSelectComponent>
+  ): StringSelectMenuBuilder {
     return StringSelectMenuBuilder.from(data);
   }
   builder: StringSelectMenuBuilder;
   constructor(
-    data: OmitType<APIStringSelectComponent> & {
+    data: (
+      | OmitType<APIStringSelectComponent>
+      | JSONEncodable<APIStringSelectComponent>
+    ) & {
       run: (
         interaction: MappedInteractionTypes[ComponentType.StringSelect]
       ) => Promise<any>;
     }
   ) {
     super({ ...data, type: ComponentType.StringSelect });
-    this.builder = StringSelectMenu.builder(this.data);
+    this.builder = StringSelectMenu.builder({
+      ...data,
+      type: ComponentType.StringSelect,
+    });
     this.run = data.run;
     Client.components.push(this);
   }
@@ -55,69 +74,134 @@ export class StringSelectMenu extends SelectMenu<APIStringSelectComponent> {
 }
 
 export class UserSelectMenu extends SelectMenu<APIUserSelectComponent> {
-  static builder(data: APIUserSelectComponent): UserSelectMenuBuilder {
+  get data() {
+    return this.builder.data;
+  }
+
+  static builder(
+    data: APIUserSelectComponent | JSONEncodable<APIUserSelectComponent>
+  ): UserSelectMenuBuilder {
     return UserSelectMenuBuilder.from(data);
   }
   builder: UserSelectMenuBuilder;
   constructor(
-    data: APIUserSelectComponent & {
+    data: (
+      | OmitType<APIUserSelectComponent>
+      | JSONEncodable<APIUserSelectComponent>
+    ) & {
       run: (interaction: UserSelectMenuInteraction) => Promise<any>;
     }
   ) {
     super({ ...data, type: ComponentType.UserSelect });
-    this.builder = UserSelectMenu.builder(this.data);
+    this.builder = UserSelectMenu.builder({
+      ...data,
+      type: ComponentType.UserSelect,
+    });
     this.run = data.run;
     Client.components.push(this);
   }
   readonly run: (int: UserSelectMenuInteraction) => Promise<any>;
 }
 
-export abstract class Button extends MessageComponent<APIButtonComponent> {
+export abstract class MessageButton<
+  Style extends ButtonStyle
+> extends MessageComponent<APIButtonComponent> {
+  readonly builder: ButtonBuilder;
+  readonly run: (interaction: ButtonInteraction) => Promise<any>;
+  // get data() {
+  //   return this.builder.data as APIButtonComponentWithCustomId;
+  // }
+  static builder(
+    data: APIButtonComponent | JSONEncodable<APIButtonComponent>
+  ): ButtonBuilder {
+    return ButtonBuilder.from(data);
+  }
+
   constructor(
-    data: APIButtonComponent & {
+    data: (APIButtonComponent | JSONEncodable<APIButtonComponent>) & {
       run: (interaction: ButtonInteraction) => any;
     }
   ) {
     super(data);
+    this.builder = MessageButton.builder(data);
     this.run = data.run;
-    if (
-      !Client.components.buttons.find(
-        (button) =>
-          button.data.style != ButtonStyle.Link &&
-          data.style != ButtonStyle.Link &&
-          button.data.custom_id === data.custom_id
-      )
-    )
-      Client.components.push(this);
   }
-  static builder(data: APIButtonComponent): ButtonBuilder {
-    return ButtonBuilder.from(data);
-  }
-  private _builder?: ButtonBuilder;
-  get builder(): ButtonBuilder {
-    return this._builder
-      ? this._builder
-      : (this._builder = Button.builder(this.data));
-  }
-  readonly run: (interaction: ButtonInteraction) => any;
 }
 
-export class InteractionButton extends Button {
+// export abstract class Buttonn extends MessageComponent<APIButtonComponent> {
+//   // readonly builder: ButtonBuilder;
+
+//   constructor(
+//     data: (OmitType<APIButtonComponent> | JSONEncodable<APIButtonComponent>) & {
+//       run: (interaction: ButtonInteraction) => any;
+//     }
+//   ) {
+//     super({ ...data, type: ComponentType.Button });
+//     // this.builder = Button.builder({...data, type : ComponentType.Button});
+//     this.run = data.run;
+
+//     if (
+//       !Client.components.buttons.interaction.find(({ data }) => {
+//         // const {style, custom_id} = data;
+
+//         // if (
+//         //   data.style != ButtonStyle.Link &&
+//         //   this.data.style != ButtonStyle.Link
+//         // ) {
+//         return data.custom_id === this.data.custom_id;
+//         // }
+//       })
+//     )
+//       Client.components.push(this);
+//   }
+//   get data() {
+//     return this.builder.data as APIButtonComponentWithCustomId;
+//   }
+//   static builder(
+//     data: APIButtonComponent | JSONEncodable<APIButtonComponent>
+//   ): ButtonBuilder {
+//     return ButtonBuilder.from(data);
+//   }
+//   // builder: ButtonBuilder;
+//   readonly run: (interaction: ButtonInteraction) => any;
+// }
+
+export class InteractionButton extends MessageButton<InteractionButtonStyle> {
+  get data(): APIButtonComponentWithCustomId {
+    return this.builder.data as APIButtonComponentWithCustomId;
+  }
+
   constructor(
-    data: OmitType<APIButtonComponentWithCustomId> & {
+    data: (
+      | OmitType<APIButtonComponentWithCustomId>
+      | JSONEncodable<APIButtonComponentWithCustomId>
+    ) & {
       run: (interaction: ButtonInteraction) => any;
     }
   ) {
     super({ ...data, type: ComponentType.Button });
+    this.builder = MessageButton.builder({
+      ...data,
+      type: ComponentType.Button,
+    });
   }
+  builder: ButtonBuilder;
 }
 
-export class LinkButton extends Button {
+export class LinkButton extends MessageButton<ButtonStyle.Link> {
+  get data(): APIButtonComponentWithURL {
+    return this.builder.data as APIButtonComponentWithURL;
+  }
   constructor(
-    data: Omit<OmitType<APIButtonComponentWithURL>, "style"> & {
+    data: (
+      | APIButtonComponentWithURL
+      | JSONEncodable<APIButtonComponentWithURL>
+    ) & {
       run: (interaction: ButtonInteraction) => any;
     }
   ) {
-    super({ ...data, type: ComponentType.Button, style: ButtonStyle.Link });
+    super(data);
+    this.builder = MessageButton.builder(data);
   }
+  builder: ButtonBuilder;
 }

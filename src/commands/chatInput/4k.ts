@@ -7,9 +7,9 @@ export default class extends SlashCommand {
     super({
       name,
       description: "caught in 4k",
-      async run(int: ChatInputCommandInteraction) {
-        // await fetch()
-      },
     });
+  }
+  async run(int: ChatInputCommandInteraction) {
+    // await fetch()
   }
 }

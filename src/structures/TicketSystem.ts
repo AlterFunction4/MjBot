@@ -1,174 +1,174 @@
 import {
-  CategoryChannelType,
+  APIButtonComponent,
   ChannelType,
   ChatInputCommandInteraction,
   ComponentType,
   EmbedBuilder,
-  MappedChannelCategoryTypes,
-  Message,
   ModalSubmitInteraction,
+  ThreadChannel,
+  User,
 } from "discord.js";
-import { Buttons, Client, ClientTicketSystem } from "..";
+import { Buttons, Client, TicketData } from "..";
 
-export class TicketSystem implements ClientTicketSystem {
-  constructor() {}
-  id = 0;
-  get forum() {
-    return this.get(ChannelType.GuildForum);
-  }
-  get chats() {
-    return this.get(ChannelType.GuildText);
+export class Ticket implements TicketData {
+  thread?: ThreadChannel;
+  post?: ThreadChannel;
+  author?: User;
+  subject?: string;
+  description?: string;
+
+  private constructor(data: Partial<TicketData>, public id: number) {
+    this.thread = data.thread;
+    this.post = data.post;
+    this.author = data.author;
+    this.subject = data.subject;
+    this.description = data.description;
+
+    if (!this.thread || !this.post)
+      throw "Ticket.thread or Ticket.post is undefined";
+    // Client.instance.tickets.cache.add(this.post?.id, this.thread?.id);
   }
 
-  async post(
-    int: ChatInputCommandInteraction | ModalSubmitInteraction,
-    thread: Message | undefined,
-    ...tags: string[]
-  ) {
-    await (
-      await this.forum
-    )?.threads.create({
-      name: "#" + this.id,
-      message: {
-        // content: (int instanceof ChatInputCommandInteraction
-        //   ? int.options.getUser("member", true)
-        //   : int.user
-        // ).toString(),
-        embeds: [
-          {
-            ...thread?.embeds[0].data,
-            url: thread?.url,
-          },
-        ],
-        components:
-          int instanceof ModalSubmitInteraction
-            ? [
-                {
-                  type: ComponentType.ActionRow,
-                  components: [
-                    Buttons.claim_ticket.data,
-                    Buttons.close_ticket.data,
-                  ],
-                },
-              ]
-            : [],
-      },
-      appliedTags: tags,
+  private static get manager() {
+    return Client.instance.tickets;
+  }
+
+  private static async createThreadChannel() {
+    return await this.manager.chats?.threads.create({
+      type: ChannelType.PrivateThread,
+      name: "Case #" + this.manager.cache.length,
     });
   }
 
-  async create(int: ChatInputCommandInteraction | ModalSubmitInteraction) {
-    this.id++;
-    const user =
-      int instanceof ChatInputCommandInteraction
-        ? int.options.getUser("member", true)
-        : int.user;
-
-    return await (
-      await this.chats
-    )?.threads
-      .create({
-        type: ChannelType.PrivateThread,
-        name: "Case #" + this.id,
-      })
-      .then(async (thread) => {
-        let message = await thread?.send({
-          embeds: [
-            new EmbedBuilder({
-              author: {
-                name: user.tag,
-                icon_url: user.displayAvatarURL(),
-              },
-              title:
-                int instanceof ChatInputCommandInteraction
-                  ? "You are in jail"
-                  : "This is ticket number " + this.id,
-              description:
-                int instanceof ChatInputCommandInteraction
-                  ? ""
-                  : "This thread will handle your ticket query. Please wait for a staff member to join the thread and deal with your query. You may write any additional information related to your ticket in this thread.",
-              fields:
-                int instanceof ChatInputCommandInteraction
-                  ? []
-                  : [
-                      {
-                        name: "Ticket subject",
-                        value: int.fields.getTextInputValue("ticket_subject"),
-                      },
-                      {
-                        name: "Ticket description",
-                        value:
-                          int.fields.getTextInputValue("ticket_descriprion"),
-                      },
-                    ],
-            }),
-          ],
-        });
-        await Client.instance.tickets.post(
-          int,
-          message,
-          (
-            await this.forum
-          )?.availableTags.find((t) =>
-            t.name.endsWith(
-              int instanceof ChatInputCommandInteraction ? "cope" : "ticket"
-            )
-          )?.id as string
-        );
-        await thread.members.add(
-          int instanceof ChatInputCommandInteraction
-            ? int.options.getUser("member", true)
-            : int.user
-        );
-
-        if (int instanceof ChatInputCommandInteraction)
-          await thread.members.add(int.user);
-        return message;
-      });
+  private static async createForumThread(
+    thread?: ThreadChannel,
+    ...tags: string[]
+  ) {
+    return await this.manager.forum?.threads.create({
+      name: "#" + this.manager.cache.length,
+      message: {
+        embeds: [
+          {
+            ...thread?.lastMessage?.embeds[0].data,
+            url: thread?.url,
+          },
+        ],
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              Buttons.claim_ticket.data,
+              Buttons.close_ticket.data,
+            ] as APIButtonComponent[],
+          },
+        ],
+      },
+      appliedTags: this.manager.forum.availableTags
+        .filter((tag) => tags.includes(tag.name))
+        .map((tag) => tag.id),
+    });
   }
 
-  private async get<
-    T extends Exclude<
-      CategoryChannelType,
-      | ChannelType.GuildVoice
-      | ChannelType.GuildAnnouncement
-      | ChannelType.GuildStageVoice
-      | ChannelType.GuildMedia
-    >
-  >(type: T) {
-    return (
-      Client.instance.guilds.cache
-        .get(process.env.DEV_GUILD_ID as string)
-        ?.channels.cache.filter(
-          (channel): channel is MappedChannelCategoryTypes[T] =>
-            channel.type === type
-        )
-        .find(({ name }) => name.endsWith("tickets")) ??
-      (await Client.instance.guilds.cache
-        .get(process.env.DEV_GUILD_ID as string)
-        ?.channels.create<T>({
-          type: type,
-          name: "tickets",
-          availableTags: [
+  static buildFromJSONCache() {
+    this.manager.json.forEach(async ([p, t]) => {
+      const post = Client.instance.tickets.forum?.threads.cache.get(p);
+      const message = await post?.fetchStarterMessage();
+
+      let data = {
+        post: post,
+        thread: Client.instance.tickets.chats?.threads.cache.get(t),
+        author: Client.instance.users.cache.find(
+          (user) => user.tag === message?.embeds[0].author?.name
+        ),
+        subject: message?.embeds[0].fields[0].value,
+        description: message?.embeds[0].fields[1].value,
+      };
+
+      Client.instance.tickets.cache.push(
+        new this(data, parseInt(post?.name as string))
+      );
+    });
+  }
+
+  private static buildFromModal(int: ModalSubmitInteraction) {
+    return {
+      author: int.user,
+      subject: int.fields.getTextInputValue("ticket_subject"),
+      description: int.fields.getTextInputValue("ticket_description"),
+    };
+  }
+
+  private static buildFromSlashCommand(int: ChatInputCommandInteraction) {
+    return {
+      author: int.options.getUser("member", true),
+      subject: "You are in jail",
+      description: "do not attempt to leave",
+    };
+  }
+
+  static async build(
+    int: ChatInputCommandInteraction | ModalSubmitInteraction
+  ) {
+    let data: TicketData = {
+      ...(int.isModalSubmit()
+        ? this.buildFromModal(int)
+        : this.buildFromSlashCommand(int)),
+      thread: await this.createThreadChannel(),
+    };
+
+    await data.thread?.send({
+      embeds: [
+        new EmbedBuilder({
+          author: {
+            name: data.author?.tag as string,
+            iconURL: data.author?.displayAvatarURL(),
+          },
+          title: "This is ticket number " + this.manager.cache.length,
+          description:
+            "This thread will handle your ticket query. Please wait for a staff member to join the thread and deal with your query. You may write any additional information related to your ticket in this thread.",
+          fields: [
             {
-              name: "/ticket",
-              emoji: {
-                id: null,
-                name: "🎟️",
-              },
+              name: "Ticket subject",
+              value: data.subject as string,
             },
             {
-              name: "/cope",
-              emoji: {
-                id: null,
-                name: "🤣",
-              },
-            },
-            {
-              name: "resolved",
+              name: "Ticket description",
+              value: data.description as string,
             },
           ],
-        }))
+        }),
+      ],
+    });
+
+    data.post = await this.createForumThread(
+      data.thread,
+      int.isModalSubmit()
+        ? TicketSystemForumTags.Ticket
+        : TicketSystemForumTags.Cope
     );
+
+    await data.thread?.members.add(data.author?.id as string);
+    if (int.isChatInputCommand()) await data.thread?.members.add(int.user);
+
+    return new this(data, this.manager.cache.length);
   }
+}
+
+enum TicketSystemForumTags {
+  Cope = "/cope",
+  Ticket = "/ticket",
+  Resolved = "resolved",
+}
+
+enum ClientFeatures {
+  Tickets = 0,
+  Cope = 1,
+  Bruh = 2,
+  Embeds = 3,
+  TicTacToe = 4,
+}
+
+enum TicketSystemForumTagEmojis {
+  Cope = "🤣",
+  Ticket = "🎟️",
 }

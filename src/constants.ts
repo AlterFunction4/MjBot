@@ -1,5 +1,6 @@
 import { ButtonStyle, Component, ComponentType } from "discord.js";
-import { Client, InteractionButton, debug } from ".";
+import { Button, Client, InteractionButton, MessageButton, debug } from ".";
+import ticket from "./commands/chatInput/ticket";
 
 export const Buttons: Record<string, InteractionButton> = {
   send_error: new InteractionButton({
@@ -7,13 +8,12 @@ export const Buttons: Record<string, InteractionButton> = {
     label: "Send error report",
     style: ButtonStyle.Primary,
     async run(click) {
-      debug(this.constructor.prototype);
       await click.message.edit({
         components: [
           {
             type: ComponentType.ActionRow,
             components: [
-              InteractionButton.builder(Buttons.send_error.data)
+              MessageButton.builder(click.component)
                 .setLabel("Error report sent")
                 .setStyle(ButtonStyle.Success)
                 .setDisabled(true),
@@ -29,17 +29,15 @@ export const Buttons: Record<string, InteractionButton> = {
     label: "Join ticket",
     style: ButtonStyle.Primary,
     async run(int) {
-      const [_, channel] =
-        int.message.embeds[0].url?.split("/").reverse() ?? [];
-      const thread = await (
-        await Client.instance.tickets.chats
-      )?.threads.fetch(channel);
+      const ticket = Client.instance.tickets.cache.find(
+        (ticket) => ticket.post?.id === int.channel?.id
+      );
       if (
-        !(await thread?.members.fetch())?.find(
+        !(await ticket?.thread?.members.fetch())?.find(
           (member) => member.user?.id === int.user.id
         )
       ) {
-        await thread?.members.add(int.user);
+        await ticket?.thread?.members.add(int.user);
         await int.deferUpdate();
         await int.channel?.send({
           content: int.user.username + " has joined the ticket thread.",
@@ -58,13 +56,13 @@ export const Buttons: Record<string, InteractionButton> = {
     async run(int) {
       const [_, channel] =
         int.message.embeds[0].url?.split("/").reverse() ?? [];
-      const thread = await (
-        await Client.instance.tickets.chats
-      )?.threads.fetch(channel);
+      const ticket = Client.instance.tickets.cache.find(
+        (ticket) => ticket.post?.id === int.channel?.id
+      );
 
       setTimeout(
         async () =>
-          await thread?.setLocked(
+          await ticket?.thread?.setLocked(
             true,
             "ticket closed by " + int.user.toString() + " 5 minutes ago."
           ),
@@ -75,7 +73,7 @@ export const Buttons: Record<string, InteractionButton> = {
         content: int.user.username + " has closed the ticket thread.",
       });
 
-      await thread?.send({
+      await ticket?.thread?.send({
         embeds: [
           {
             title: "Ticket closed",

@@ -1,3 +1,4 @@
+import { ChatInputCommandInteraction } from "discord.js";
 import { SlashCommand } from "..";
 
 export default class extends SlashCommand {
@@ -5,9 +6,9 @@ export default class extends SlashCommand {
     super({
       name,
       description: "throw an intentional error",
-      run(int) {
-        throw "Intentional error";
-      },
     });
+  }
+  async run(int: ChatInputCommandInteraction) {
+    throw "Intentional error";
   }
 }

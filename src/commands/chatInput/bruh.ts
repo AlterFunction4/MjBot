@@ -17,23 +17,23 @@ export default class extends SlashCommand {
           description: "/bruh context menu settings",
         },
       ],
-      async run(int: ChatInputCommandInteraction) {
-        switch (int.options.getSubcommand()) {
-          case "settings":
-            await int.reply({
-              embeds: [
-                new EmbedBuilder({
-                  author: {
-                    name: "bruh settings",
-                  },
-                }),
-              ],
-            });
-            break;
-          default:
-            throw "unexpected subcommand";
-        }
-      },
     });
+  }
+  async run(int: ChatInputCommandInteraction) {
+    switch (int.options.getSubcommand()) {
+      case "settings":
+        await int.reply({
+          embeds: [
+            new EmbedBuilder({
+              author: {
+                name: "bruh settings",
+              },
+            }),
+          ],
+        });
+        break;
+      default:
+        throw "unexpected subcommand";
+    }
   }
 }

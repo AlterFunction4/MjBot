@@ -1,24 +1,30 @@
 import fs from "fs";
-import { dirname, join } from "path";
-import config from "../config.json";
 
-export class Config {
-  //extends Object
-  constructor() {
-    // super();
-    for (let [k, v] of Object.entries(config)) this[k] = v;
+export class JSONCache extends Array<[string, any]> {
+  constructor(private readonly _dir: string) {
+    super();
+    const json = JSON.parse(fs.readFileSync(_dir).toString());
+    for (let k in json) {
+      this.push([k, json[k]]);
+    }
+    this.save();
   }
-  [k: string]: any;
 
   save() {
     fs.writeFileSync(
-      join(dirname(__dirname), "config.json"),
-      JSON.stringify(this)
+      this._dir,
+      JSON.stringify(Object.fromEntries(this), (key, value) =>
+        key === "_dir" ? undefined : value
+      )
     );
   }
 
-  delete(...keys: string[]) {
-    keys.map((key) => delete this[key]);
+  add(tuple: [string, any]) {
+    this.push(tuple);
     return this.save();
+  }
+
+  edit(key: string, value: any) {
+    // this.find(([k]) => key === k);
   }
 }

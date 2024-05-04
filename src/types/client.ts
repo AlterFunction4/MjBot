@@ -1,5 +1,9 @@
-import { ClientEvents, Client as DiscordClient } from "discord.js";
-import { ApplicationCommands, MessageComponents } from ".";
+import {
+  ClientEvents,
+  Client as DiscordClient,
+  ThreadChannel,
+  User,
+} from "discord.js";
 
 export type ClientEvent<K extends keyof ClientEvents> = {
   name: K;
@@ -16,4 +20,13 @@ export type ClientApplicationIntegration = DiscordClient & {
 export interface ClientTicketSystem {
   // get chats(): Promise<TextChannel>;
   // get forum(): Promise<ForumChannel>;
+}
+
+export interface TicketData {
+  // case: number;
+  author?: User;
+  subject?: string;
+  description?: string;
+  thread?: ThreadChannel;
+  post?: ThreadChannel;
 }

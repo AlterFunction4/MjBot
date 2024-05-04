@@ -22,31 +22,12 @@ export class Util extends null {
   }
 }
 
-// export class Unix extends null {
-//   static timestamp(
-//     timestamp: number,
-//     style: UnixTimestampStyle = UnixTimestampStyle.Default
-//   ): string {
-//     const length = 10;
-//     console.log(timestamp.toString().length);
-//     if (timestamp.toString().length > length)
-//       return this.timestamp(
-//         Math.floor(
-//           timestamp / Math.pow(10, timestamp.toString().length - length)
-//         ),
-//         style
-//       );
-//     return `<t:${timestamp}:${style}>`;
-//   }
-// }
+export class Logger extends console.Console {
+  constructor() {
+    super(process.stdout, process.stderr);
+  }
+}
 
-// export enum UnixTimestampStyle {
-//   Default = "f",
-//   ShortTime = "t",
-//   LongTime = "T",
-//   ShortDate = "d",
-//   LongDate = "D",
-//   ShortDateTime = Default,
-//   LongDateTime = "F",
-//   Relative = "R",
-// }
+export type RequireFields<T, K extends keyof T> = T & Required<Pick<T, K>>;
+
+export type OmitType<T> = Omit<T, "type">;

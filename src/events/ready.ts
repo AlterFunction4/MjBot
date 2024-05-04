@@ -1,5 +1,5 @@
-import { ActivityType, ChannelType, Events } from "discord.js";
-import { Client, Event } from "..";
+import { ActivityType, Events, Guild } from "discord.js";
+import { Client, Event, Ticket, TicketManager, debug } from "..";
 
 export default new (class extends Event<Events.ClientReady> {
   constructor() {
@@ -7,29 +7,32 @@ export default new (class extends Event<Events.ClientReady> {
       name: Events.ClientReady,
       once: true,
       async run() {
-        const guild = Client.instance.guilds.cache.get(
-          process.env.DEFAULT_GUILD_ID as string
-        );
+        Object.assign(Guild.prototype, { tickets: new TicketManager() });
 
-        await guild?.members.fetch();
-        await guild?.channels.fetch().then((channels) => {
-          channels
-            .filter((channel) => channel?.type != ChannelType.GuildCategory)
-            .map(async (channel) => {});
-        });
+        await Client.instance.guild?.members.fetch();
+        await Client.instance.guild?.channels.fetch();
+
+        // Client.instance.guild?.tickets;
+
+        Ticket.buildFromJSONCache();
+        debug(Client.instance.tickets.cache);
 
         await Client.instance.application?.commands.set(
-          Client.commands.filter((c) => !c.disabled)
+          Client.commands.filter((c) => !c.disabled).map((c) => c.builder)
         );
         await Client.instance.guilds.cache
           .get(process.env.DEV_GUILD_ID as string)
           ?.commands.set(
-            Client.commands.filter((command) => !command.disabled)
+            Client.commands
+              .filter((command) => !command.disabled)
+              .map((c) => c.builder)
           );
         setInterval(async () => {
           Client.instance.user?.setActivity({
             type: ActivityType.Watching,
-            name: guild?.members.cache.random()?.user.tag ?? "Error",
+            name:
+              Client.instance.guild?.members.cache.random()?.user.tag ??
+              "Error",
           });
         }, 10000);
         console.log("%s is ready", Client.instance.user?.tag);

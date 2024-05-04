@@ -1,42 +1,49 @@
 import {
-  APIMessageActionRowComponent,
   ApplicationCommandType,
   AutocompleteInteraction,
   Awaitable,
-  BaseApplicationCommandData,
   ChatInputApplicationCommandData,
   ChatInputCommandInteraction,
   MessageApplicationCommandData,
   MessageContextMenuCommandInteraction,
   UserApplicationCommandData,
   UserContextMenuCommandInteraction,
+  ApplicationCommandData,
+  SlashCommandBuilder,
+  ContextMenuCommandBuilder,
 } from "discord.js";
 import {
   ApplicationCommand,
   Client,
   MessageActionRowComponents,
   MessageContextMenuCommand,
+  RequireFields,
   SlashCommand,
   UserContextMenuCommand,
 } from "..";
 
-export type ApplicationCommandBaseData<Type extends ApplicationCommandType> =
-  BaseApplicationCommandData & {
-    disabled?: boolean;
-    components?: MessageActionRowComponents[];
-    run(
-      interaction: MappedApplicationCommandInteractionTypes[Type]
-    ): Awaitable<any>;
-  };
+export type ApplicationCommandBaseData<
+  Application extends RequireFields<ApplicationCommandData, "type">
+> = {
+  // get data(): Application;
+  components: MessageActionRowComponents[];
+  disabled: boolean;
+  builder: Application["type"] extends ApplicationCommandType.ChatInput
+    ? SlashCommandBuilder
+    : ContextMenuCommandBuilder;
+  readonly run: (
+    interaction: MappedApplicationCommandInteractionTypes[Application["type"]]
+  ) => any;
+};
 
-export type ApplicationCommandData<Type extends ApplicationCommandType> =
-  ApplicationCommandBaseData<Type> & MappedApplicationCommandDataTypes[Type];
+// export type ApplicationCommandData<Type extends ApplicationCommandType> =
+//   ApplicationCommandBaseData<Type> & MappedApplicationCommandDataTypes[Type];
 
-export interface MappedApplicationCommandDataTypes {
-  [ApplicationCommandType.ChatInput]: ChatInputApplicationCommandData;
-  [ApplicationCommandType.Message]: MessageApplicationCommandData;
-  [ApplicationCommandType.User]: UserApplicationCommandData;
-}
+// export interface MappedApplicationCommandDataTypes {
+//   [ApplicationCommandType.ChatInput]: ChatInputApplicationCommandData;
+//   [ApplicationCommandType.Message]: MessageApplicationCommandData;
+//   [ApplicationCommandType.User]: UserApplicationCommandData;
+// }
 
 export interface MappedApplicationCommandInteractionTypes {
   [ApplicationCommandType.ChatInput]: ChatInputCommandInteraction;

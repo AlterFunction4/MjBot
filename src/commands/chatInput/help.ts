@@ -8,9 +8,9 @@ export default class extends SlashCommand {
       description:
         "Help with " + Client.instance.user?.username ??
         process.env.npm_package_name,
-      async run(int: ChatInputCommandInteraction) {
-        debug("helping");
-      },
     });
+  }
+  async run(int: ChatInputCommandInteraction) {
+    debug("helping");
   }
 }

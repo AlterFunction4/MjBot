@@ -19,9 +19,9 @@ export default class extends SlashCommand {
           required: true,
         },
       ],
-      async run(int: ChatInputCommandInteraction) {
-        await Client.instance.tickets.create(int);
-      },
     });
+  }
+  async run(int: ChatInputCommandInteraction) {
+    await Client.instance.tickets.add(int);
   }
 }
